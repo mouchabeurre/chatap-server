@@ -1,0 +1,28 @@
+<html>
+
+<head>
+  <meta charset='utf-8'>
+  <script src="/socket.io.js"></script>
+  <title>Test socket</title>
+</head>
+
+<body>
+  <h1>ok</h1>
+  <label>token
+    <input style="width:1363px;" id="token" type="text">
+  </label>
+  <button onclick="connect()">connect</button>
+  <br>
+  <label>room
+    <input style="width:1363px;" id="room" type="text">
+  </label>
+  <br>
+  <label>message
+    <input style="width:1363px;" id="message" type="text">
+  </label>
+  <br>
+  <button onclick="send()">send</button>
+  <script src="/chat-client.js"></script>
+</body>
+
+</html>

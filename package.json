@@ -1,0 +1,25 @@
+{
+  "name": "rest-api",
+  "version": "0.0.1",
+  "description": "Rest api with socket support for a chat application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "1.17.1",
+    "cors": "2.8.4",
+    "express": "4.16.2",
+    "jsonwebtoken": "8.1.0",
+    "mongoose": "4.12.4",
+    "passport": "0.4.0",
+    "passport-jwt": "3.0.0",
+    "shortid": "2.2.8",
+    "socket.io": "2.0.4",
+    "socketio-jwt": "github:root-core/socketio-jwt"
+  },
+  "author": "mouchabeurre",
+  "license": "MIT"
+}
