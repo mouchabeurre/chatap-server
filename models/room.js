@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const shortid = require('shortid');
 
 const User = require('./user');
-const Thread = require('./thread');
 
 const RoomSchema = mongoose.Schema({
   _id: {
@@ -69,12 +68,11 @@ class Room {
   constructor() {
     this.model = mongoose.model('Room', RoomSchema);;
     this.user_model = User;
-    this.thread_model = Thread;
     this.prefix = { single: '/room', plural: '/rooms' };
-    this._initSchema();
+    this._init();
   }
 
-  _initSchema() {
+  _init() {
     RoomSchema.virtual('room_id').get(function () {
       return this._id;
     });
@@ -133,23 +131,15 @@ class Room {
         })
         .then((room) => {
           response = room;
-          return this.thread_model.createThread(room._id, 'Main thread');
+          return require('./thread').createThread(room._id, 'Main thread');
         })
         .then((thread) => {
-          return new Promise((resolve, reject) => {
-            this.model.findOneAndUpdate({ _id: response._id },
-              {
-                $set: {
-                  feed: thread._id
-                }
-              }).exec()
-              .then((room) => {
-                resolve();
-              })
-              .catch((error) => {
-                reject(error);
-              });
-          });
+          return this.model.findOneAndUpdate({ _id: response._id },
+            {
+              $set: {
+                feed: thread._id
+              }
+            }).exec();
         })
         .then((room) => {
           response = room;
@@ -343,7 +333,7 @@ class Room {
 
   addThread(room_id, title) {
     return new Promise((resolve, reject) => {
-      this.thread_model.createThread(room_id, title)
+      require('./thread').createThread(room_id, title)
         .then((thread) => {
           return this.model.findOneAndUpdate({ _id: room_id },
             {

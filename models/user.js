@@ -44,7 +44,15 @@ const UserSchema = mongoose.Schema({
       default: false
     }
   }],
+  friendrequest: [{
+    type: String,
+    ref: 'User'
+  }],
   friends: [{
+    type: String,
+    ref: 'User'
+  }],
+  blocked: [{
     type: String,
     ref: 'User'
   }],
@@ -62,10 +70,10 @@ class User {
   constructor() {
     this.model = mongoose.model('User', UserSchema);
     this.prefix = { single: '/user', plural: '/users' };
-    this._initSchema(this.model);
+    this._init(this.model);
   }
 
-  _initSchema(model) {
+  _init(model) {
     UserSchema.virtual('username').get(function () {
       return this._id;
     });
@@ -188,11 +196,15 @@ class User {
             const loadout = {
               username: username,
               online: true,
-              socket_id: user.socket
+              socket_id: user.activity.socket
             }
+            resolve(loadout);
           }
         })
-    })
+        .catch((error) => {
+          reject(error);
+        });
+    });
   }
 
   isUser(username) {
@@ -201,6 +213,9 @@ class User {
         .then((user) => {
           (user == null) ? resolve(false) : resolve(true);
         })
+        .catch((error) => {
+          reject(error);
+        });
     })
   }
 
@@ -210,7 +225,37 @@ class User {
         .then((user) => {
           (user == null) ? resolve(false) : resolve(true);
         })
+        .catch((error) => {
+          reject(error);
+        });
     })
+  }
+
+  isBlocked(performer, username) {
+    return new Promise((resolve, reject) => {
+      this.model.findOne({ _id: username, friendrequest: performer }).exec()
+        .then((is_blocked) => {
+          (is_blocked == null) ? resolve(false) : resolve(true);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  }
+
+  isRequestingFriend(performer, username) {
+    return new Promise((resolve, reject) => {
+      this.model.findOne({
+        _id: username,
+        friendrequest: performer
+      }, { notifications: 1 }).exec()
+        .then((is_requesting) => {
+          (is_requesting == null) ? resolve(false) : resolve(true);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
   }
 
   createUser(username, email, pseudo, password) {
@@ -264,52 +309,193 @@ class User {
     });
   }
 
-  updateFriends(performer, username, action) {
+  blockUser(performer, username) {
     return new Promise((resolve, reject) => {
       let is_user_performer = this.isUser(performer);
       let is_user_username = this.isUser(username);
-      return Promise.all([is_user_performer, is_user_username]);
-    })
-      .then((is_user_results) => {
-        if (!is_user_results[0] || !is_user_results[1]) {
-          throw new Error('invalid parameters');
-        } else {
-          return this.isFriend(performer, username);
-        }
-      })
-      .then((is_friend) => {
-        if (!is_friend) {
-          throw new Error('user already in friend list');
-        } else {
-          let update = {};
-          switch (action) {
-            case 'add':
-              update = {
-                $push: {
-                  friends: username
-                }
-              }
-              break;
-            case 'remove':
-              update = {
-                $pull: {
-                  friends: username
-                }
-              }
-              break;
-            default:
-              throw new Error('missing or incorrect action');
-              break;
+      Promise.all([is_user_performer, is_user_username])
+        .then((is_user_results) => {
+          if (!is_user_results[0] || !is_user_results[1]) {
+            throw new Error('invalid parameters');
+          } else {
+            return this.isFriend(performer, username);
           }
-          return this.model.findByIdAndUpdate({ _id: performer }, update, { upsert: true, new: true }).exec();
-        }
-      })
-      .then((user) => {
-        resolve(user.friends);
-      })
-      .catch((error) => {
-        reject(error);
-      });
+        })
+        .then((is_friend) => {
+          if (is_friend) {
+            return this.unfriendUser(performer, username);
+          } else {
+            return this.model.findOneAndUpdate({ _id: performer }, {
+              $push: {
+                blocked: username
+              }
+            }, { upsert: true, new: true }).exec();
+          }
+        })
+        .then((mystery_promise) => {
+          if (mystery_promise.unfriended) {
+            return this.model.findOneAndUpdate({ _id: performer }, {
+              $push: {
+                blocked: username
+              }
+            }, { upsert: true, new: true }).exec();
+          } else {
+            resolve({ blocked: username });
+          }
+        })
+        .then((updated_performer) => {
+          resolve({ blocked: username });
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  }
+
+  unfriendUser(performer, username) {
+    return new Promise((resolve, reject) => {
+      let is_user_performer = this.isUser(performer);
+      let is_user_username = this.isUser(username);
+      Promise.all([is_user_performer, is_user_username])
+        .then((is_user_results) => {
+          if (!is_user_results[0] || !is_user_results[1]) {
+            throw new Error('invalid parameters');
+          } else {
+            return this.isFriend(performer, username);
+          }
+        })
+        .then((is_friend) => {
+          if (!is_friend) {
+            throw new Error('user not friend in the first place');
+          } else {
+            let remove_performer = this.model.findOneAndUpdate({ _id: username }, {
+              $pull: {
+                friends: performer
+              }
+            }, { upsert: true, new: true }).exec();
+            let remove_username = this.model.findOneAndUpdate({ _id: performer }, {
+              $pull: {
+                friends: username
+              }
+            }, { upsert: true, new: true }).exec();
+            return Promise.all([remove_performer, remove_username]);
+          }
+        })
+        .then(() => {
+          resolve({ unfriended: username });
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    })
+  }
+
+  requestFriend(performer, username) {
+    return new Promise((resolve, reject) => {
+      let is_user_performer = this.isUser(performer);
+      let is_user_username = this.isUser(username);
+      Promise.all([is_user_performer, is_user_username])
+        .then((is_user_results) => {
+          if (!is_user_results[0] || !is_user_results[1]) {
+            throw new Error('invalid parameters');
+          } else {
+            return this.isFriend(performer, username);
+          }
+        })
+        .then((is_friend) => {
+          if (is_friend) {
+            throw new Error('user already in friend list');
+          } else {
+            return this.isRequestingFriend(performer, username);
+          }
+        })
+        .then((is_requesting) => {
+          if (is_requesting) {
+            throw new Error('friend request already sent to user');
+          } else {
+            return this.isBlocked(performer, username);
+          }
+        })
+        .then((is_blocked) => {
+          if (is_blocked) {
+            resolve({ requested: false });
+          } else {
+            return this.model.findOneAndUpdate({ _id: username }, {
+              $push: {
+                friendrequest: performer
+              }
+            }).exec();
+          }
+        })
+        .then((requested_user) => {
+          resolve({ requested: true });
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  }
+
+  replyRequestFriend(performer, username, action) {
+    return new Promise((resolve, reject) => {
+      let is_user_performer = this.isUser(performer);
+      let is_user_username = this.isUser(username);
+      Promise.all([is_user_performer, is_user_username])
+        .then((is_user_results) => {
+          if (!is_user_results[0] || !is_user_results[1]) {
+            throw new Error('invalid parameters');
+          } else {
+            return this.isFriend(performer, username);
+          }
+        })
+        .then((is_friend) => {
+          if (is_friend) {
+            throw new Error('user already in friend list');
+          } else {
+            return this.isRequestingFriend(username, performer);
+          }
+        })
+        .then((is_requesting) => {
+          if (!is_requesting) {
+            throw new Error('no user invitation to reply to');
+          } else {
+            switch (action) {
+              case 'accept':
+                let add_performer = this.model.findOneAndUpdate({ _id: username }, {
+                  $push: {
+                    friends: performer
+                  }
+                }, { upsert: true, new: true }).exec();
+                let add_username = this.model.findOneAndUpdate({ _id: performer }, {
+                  $push: {
+                    friends: username
+                  },
+                  $pull: {
+                    friendrequest: username
+                  }
+                }, { upsert: true, new: true }).exec();
+                return Promise.all([add_performer, add_username]);
+                break;
+              case 'deny':
+                return this.model.findOneAndUpdate({ _id: username }, {
+                  $pull: {
+                    friendrequest: performer
+                  }
+                }, { upsert: true, new: true }).exec();
+                break;
+              default:
+                throw new Error('unknown action');
+                break;
+            }
+          }
+        })
+        .then((add_results) => {
+          resolve({ user: username, action: action });
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
   }
 
   updateRooms(username, room_id, action) {
@@ -366,7 +552,7 @@ class User {
             $set: {
               activity: {
                 socket: socket_id,
-                online: false
+                online: true
               }
             }
           }
@@ -375,7 +561,7 @@ class User {
           throw new Error('missing or incorrect action');
           break;
       }
-      this.model.findOneAndUpdate({ _id: username }, update, { upsert: true, new: true })
+      this.model.findOneAndUpdate({ _id: username }, update, { new: true }).exec()
         .then((user) => {
           if (!user) {
             throw new Error('couldn\'t update status');

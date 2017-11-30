@@ -39,10 +39,10 @@ class Message {
   constructor() {
     this.model = mongoose.model('Message', MessageSchema);
     this.prefix = { single: '/message', plural: '/messages' };
-    this._initSchema();
+    this._init();
   }
 
-  _initSchema() {
+  _init() {
   }
 
   createMessage(performer, room_id, media, content) {

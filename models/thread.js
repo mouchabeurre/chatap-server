@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 const shortid = require('shortid');
 
-const Room = require('./room');
 const Message = require('./message');
 
 const ThreadSchema = mongoose.Schema({
@@ -33,14 +32,12 @@ class Thread {
 
   constructor() {
     this.model = mongoose.model('Thread', ThreadSchema);
-    this.room_model = Room;
     this.message_model = Message;
     this.prefix = { single: '/thread', plural: '/threads' };
-    this._initSchema();
+    this._init();
   }
 
-  _initSchema() {
-
+  _init() {
   }
 
   createThread(room_id, title) {
@@ -61,7 +58,8 @@ class Thread {
 
   addMessage(performer, room_id, thread_id, media, content) {
     return new Promise((resolve, reject) => {
-      this.room_model.isGuest(performer, room_id)
+      let response;
+      require('./room').isGuest(performer, room_id)
         .then((is_guest) => {
           if (!is_guest) {
             throw new Error('invalid parameters');
@@ -73,10 +71,11 @@ class Thread {
           if (!is_thread) {
             throw new Error('no such thread in db');
           } else {
-            return this.message_model.createMessage(performer, room_id, media, connect);
+            return this.message_model.createMessage(performer, room_id, media, content);
           }
         })
         .then((message) => {
+          response = message;
           return this.model.findOneAndUpdate({ _id: thread_id },
             {
               $push: {
@@ -84,8 +83,8 @@ class Thread {
               }
             }).exec();
         })
-        .then((room) => {
-          resolve();
+        .then(() => {
+          resolve(response);
         })
         .catch((error) => {
           reject(error);
@@ -107,7 +106,7 @@ class Thread {
 
   getThread(thread_id, performer, options = {}) {
     return new Promise((resolve, reject) => {
-      this.room_model.isGuest(performer)
+      require('./room').isGuest(performer)
         .then((is_guest) => {
           if (!is_guest) {
             throw new Error('invalid parameters');
