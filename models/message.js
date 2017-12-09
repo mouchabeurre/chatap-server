@@ -7,7 +7,7 @@ const MessageSchema = mongoose.Schema({
     type: String,
     default: shortid.generate
   },
-  room: {
+  thread: {
     type: String,
     ref: 'Room',
     required: true
@@ -45,10 +45,10 @@ class Message {
   _init() {
   }
 
-  createMessage(performer, room_id, media, content) {
+  createMessage(performer, thread_id, media, content) {
     return new Promise((resolve, reject) => {
       const newMessage = new this.model({
-        room: room_id,
+        thread: thread_id,
         author: performer,
         loadout: {
           media: media,

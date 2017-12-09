@@ -36,6 +36,63 @@ class Socket {
           });
         });
 
+      socket.on('create-room', (data) => {
+        if (!data.name) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'room/create',
+            error: 'missing parameter(s)'
+          });
+        } else {
+          this.room_model.createRoom(data.name, username)
+            .then((room) => {
+              if (data.guests) {
+                this.io.to(socket.id).emit('create-room-ack', {
+                  success: true,
+                  room_id: room._id,
+                  guests: data.guests
+                });
+              } else {
+                this.io.to(socket.id).emit('create-room-ack', {
+                  success: true,
+                  room_id: room._id
+                });
+              }
+            })
+            .catch((error) => {
+              next(error);
+            });
+        }
+      });
+
+      socket.on('create-thread', (data) => {
+        if (!data.title || !data.room_id) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'create-thread',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.room_model.addThread(username, data.room_id, data.title)
+            .then((thread) => {
+              this.io.to(socket.id).emit('create-thread-ack', {
+                success: true
+              });
+              this.io.to(data.room_id).emit('new-thread', {
+                success: true,
+                thread_id: thread._id
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'create-thread',
+                error: error
+              });
+            });
+        }
+      });
+
       socket.on('send-thread', (data) => {
         if (!data.content || !data.room_id || !data.thread_id || !data.media) {
           this.io.to(socket.id).emit('error-manager', {
@@ -46,7 +103,11 @@ class Socket {
         } else {
           this.thread_model.addMessage(username, data.room_id, data.thread_id, data.media, data.content)
             .then((new_message) => {
+              this.io.to(socket.id).emit('send-thread-ack', {
+                success: true
+              });
               this.io.to(data.room_id).emit('new-message', {
+                thread_id: new_message.thread,
                 message: new_message
               });
             })
@@ -69,8 +130,8 @@ class Socket {
           });
         } else {
           this.user_model.requestFriend(username, data.requested_user)
-            .then((requested) => {
-              if (!requested) {
+            .then((result) => {
+              if (!result.requested) {
                 this.io.to(socket.id).emit('send-friend-request-ack', {
                   success: true,
                   requested: data.requested_user
@@ -87,7 +148,7 @@ class Socket {
               if (requested.online) {
                 this.io.to(requested.socket_id).emit('friend-request', {
                   success: true,
-                  requested: data.requested_user
+                  requester: username
                 });
               }
             })
@@ -188,13 +249,14 @@ class Socket {
         } else {
           this.room_model.addGuest(username, data.add_user, data.room_id)
             .then(() => {
-              const loadout = {
+              this.io.to(socket.id).emit('add-guest-ack', {
+                success: true
+              });
+              this.io.to(data.room_id).emit('new-guest', {
                 success: true,
                 room_id: data.room_id,
                 guest: data.add_user
-              }
-              this.io.to(socket.id).emit('add-guest-ack', loadout);
-              this.io.to(data.room_id).emit('new-guest', loadout);
+              });
               return this.user_model.isConnectedUser(data.add_user);
             })
             .then((user) => {
@@ -206,7 +268,6 @@ class Socket {
               }
             })
             .catch((error) => {
-              console.log(error);
               this.io.to(socket.id).emit('error-manager', {
                 success: false,
                 path: 'add-guest',
@@ -234,7 +295,7 @@ class Socket {
                 });
               } else {
                 socket.join(data.room_id, () => {
-                  this.io.to(socket.id).emit('joined-room', {
+                  this.io.to(socket.id).emit('join-room-ack', {
                     success: true,
                     room: room_id
                   });
@@ -262,22 +323,24 @@ class Socket {
           this.this.user_model.isConnectedUser(data.rm_user)
             .then((user) => {
               if (user.online) {
-                user.socket_id.leave(data.room_id, () => { // meh
-                  this.io.to(user.socket_id).emit('removed-room', {
-                    success: true,
-                    room_id: data.room_id
-                  });
-                });
+                // disconnect user from room
+                // user.socket_id.leave(data.room_id, () => {
+                //   this.io.to(user.socket_id).emit('removed-room', {
+                //     success: true,
+                //     room_id: data.room_id
+                //   });
+                // });
               }
               return this.room_model.removeGuest(username, data.rm_user, data.room_id);
             })
             .then((room_guests) => {
-              const loadout = {
+              this.io.to(socket.id).emit('remove-guest-ack', {
+                success: true
+              });
+              this.io.to(data.room_id).emit('left-guest', {
                 success: true,
                 guest: data.rm_user
-              }
-              this.io.to(socket.id).emit('remove-guest-ack', loadout);
-              this.io.to(data.room_id).emit('left-guest', loadout);
+              });
             })
             .catch((error) => {
               this.io.to(socket.id).emit('error-manager', {
@@ -332,7 +395,10 @@ class Socket {
           user: username,
           online: false
         }
-        this.broadcastRooms(username, socket, 'connection-guest', loadout)
+        this.user_model.updateStatus(username, socket.id, 'logout')
+          .then(() => {
+            return this.broadcastRooms(username, socket, 'connection-guest', loadout)
+          })
           .then(() => {
             return this.broadcastFriends(username, 'connection-friend', loadout);
           })
@@ -461,7 +527,7 @@ class Socket {
         .then((friends) => {
           this.io.to(socket_id).emit('connected-friends', {
             success: true,
-            friends: friends
+            friends_status: friends
           });
           resolve();
         })

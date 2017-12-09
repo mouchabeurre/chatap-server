@@ -22,7 +22,7 @@ const RoomSchema = mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  feed: {
+  mainthread: {
     type: String,
     ref: 'Thread'
   },
@@ -137,7 +137,7 @@ class Room {
           return this.model.findOneAndUpdate({ _id: response._id },
             {
               $set: {
-                feed: thread._id
+                mainthread: thread._id
               }
             }).exec();
         })
@@ -331,10 +331,19 @@ class Room {
     });
   }
 
-  addThread(room_id, title) {
+  addThread(performer, room_id, title) {
     return new Promise((resolve, reject) => {
-      require('./thread').createThread(room_id, title)
+      let response;
+      this.getPrivilege(performer, room_id)
+        .then((privilege) => {
+          if (privilege === 'basic') {
+            throw new Error('you cannot perform this action')
+          } else {
+            return require('./thread').createThread(room_id, title)
+          }
+        })
         .then((thread) => {
+          response = thread;
           return this.model.findOneAndUpdate({ _id: room_id },
             {
               $push: {
@@ -342,8 +351,8 @@ class Room {
               }
             }).exec()
         })
-        .then((room) => {
-          resolve(room.threads);
+        .then(() => {
+          resolve(response);
         })
         .catch((error) => {
           reject(error);

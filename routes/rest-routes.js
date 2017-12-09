@@ -161,62 +161,6 @@ class Routes {
       }
     });
 
-    /*this.app.post(`${this.base}${this.user_model.prefix.single}/addfriend`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const performer = request.user.username;
-      const username = request.body.username;
-      if (!performer || !username) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'user/addfriend',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.user_model.updateFriends(performer, username, 'add')
-          .then((friends) => {
-            let loadout = {
-              success: true,
-              friends: friends
-            }
-            response.status(201).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
-    this.app.post(`${this.base}${this.user_model.prefix.single}/removefriend`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const performer = request.user.username;
-      const username = request.body.username;
-      if (!performer || !username) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'user/addfriend',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.user_model.updateFriends(performer, username, 'remove')
-          .then((friends) => {
-            let loadout = {
-              success: true,
-              friends: friends
-            }
-            response.status(201).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });*/
-
     this.app.post(`${this.base}${this.room_model.prefix.single}/create`, passport.authenticate('jwt', {
       session: false
     }), (request, response, next) => {
@@ -232,9 +176,10 @@ class Routes {
         response.status(412).json(loadout);
       } else {
         this.room_model.createRoom(name, owner)
-          .then(() => {
+          .then((room) => {
             let loadout = {
-              success: true
+              success: true,
+              room_id: room._id
             }
             response.status(201).json(loadout);
           })
@@ -261,7 +206,8 @@ class Routes {
         this.room_model.getRoom(performer, room_id)
           .then((room) => {
             let loadout = {
-              success: true
+              success: true,
+              room: room
             }
             response.status(201).json(loadout);
           })
@@ -270,98 +216,6 @@ class Routes {
           });
       }
     });
-
-    this.app.post(`${this.base}${this.room_model.prefix.single}/:room/addguest`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const room_id = request.params.room;
-      const performer = request.user.username;
-      const add_user = request.body.username;
-
-      if (!room_id || !performer || !add_user) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'room/addguest',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.room_model.addGuest(performer, add_user, room_id)
-          .then((room_guests) => {
-            let loadout = {
-              success: true,
-              guests: room_guests
-            }
-            response.status(200).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
-    this.app.post(`${this.base}${this.room_model.prefix.single}/:room/removeguest`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const room_id = request.params.room;
-      const performer = request.user.username;
-      const rm_user = request.body.username;
-
-      if (!room_id || !performer || !rm_user) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'room/removeguest',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.room_model.removeGuest(performer, rm_user, room_id)
-          .then((room_guests) => {
-            let loadout = {
-              success: true,
-              guests: room_guests
-            }
-            response.status(200).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
-    this.app.post(`${this.base}${this.room_model.prefix.single}/:room/whitelistguest`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const room_id = request.params.room;
-      const performer = request.user.username;
-      const wl_user = request.body.username;
-
-      if (!room_id || !performer || !wl_user) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'room/whitelistguest',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.room_model.whitelistGuest(performer, wl_user, room_id)
-          .then((room_loadout) => {
-            let loadout = {
-              success: true,
-              guests: room_loadout.guests,
-              whitelisted: room_loadout.whitelisted
-            }
-            response.status(200).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
   }
 
   routesConfig() {

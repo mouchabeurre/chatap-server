@@ -69,9 +69,9 @@ class Thread {
         })
         .then((is_thread) => {
           if (!is_thread) {
-            throw new Error('no such thread in db');
+            throw new Error('no such thread in room');
           } else {
-            return this.message_model.createMessage(performer, room_id, media, content);
+            return this.message_model.createMessage(performer, thread_id, media, content);
           }
         })
         .then((message) => {
