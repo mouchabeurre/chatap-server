@@ -104,17 +104,20 @@ class Thread {
     });
   }
 
-  getThread(thread_id, performer, options = {}) {
+  getThread(performer, room_id, thread_id, options = {}) {
     return new Promise((resolve, reject) => {
-      require('./room').isGuest(performer)
+      require('./room').isGuest(performer, room_id)
         .then((is_guest) => {
           if (!is_guest) {
             throw new Error('invalid parameters');
           } else {
             return this.model.findOne({ _id: thread_id }, options)
-              .populate([{
-                path: 'feed'
-              }])
+              .populate({
+                path: 'feed',
+                sort: {
+                  date: -1
+                }
+              })
               .exec();
           }
         })

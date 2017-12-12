@@ -94,7 +94,14 @@ class Room {
           if (!is_guest) {
             throw new Error('not allowed to access');
           } else {
-            return this.model.findOne({ room_id: room_id }, options).exec();
+            return this.model.findOne({ _id: room_id }, options)
+              .populate([{
+                path: 'mainthread',
+                select: 'title'
+              }, {
+                path: 'threads',
+                select: 'title'
+              }]).exec();
           }
         })
         .then((room) => {
