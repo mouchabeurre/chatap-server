@@ -352,7 +352,7 @@ class Socket {
                 socket.join(data.room_id, () => {
                   this.io.to(socket.id).emit('join-room-ack', {
                     success: true,
-                    room: room_id
+                    room: data.room_id
                   });
                 });
               }
