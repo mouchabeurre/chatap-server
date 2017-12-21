@@ -50,12 +50,14 @@ class Socket {
                 this.io.to(socket.id).emit('create-room-ack', {
                   success: true,
                   room_id: room._id,
+                  room_name: room.name,
                   guests: data.guests
                 });
               } else {
                 this.io.to(socket.id).emit('create-room-ack', {
                   success: true,
-                  room_id: room._id
+                  room_id: room._id,
+                  room_name: room.name
                 });
               }
             })
@@ -94,8 +96,34 @@ class Socket {
         }
       });
 
+      socket.on('rename-room', (data) => {
+        if (!data.room_id || !data.new_name) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'rename-room',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.room_model.renameRoom(username, data.room_id, data.new_name)
+            .then((room_name) => {
+              this.io.to(data.room_id).emit('rename-room-ack', {
+                success: true,
+                room_id: data.room_id,
+                room_name: room_name
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'rename-room',
+                error: error
+              });
+            });
+        }
+      });
+
       socket.on('get-thread', (data) => {
-        if (!data.thread_id, !data.room_id) {
+        if (!data.thread_id || !data.room_id) {
           this.io.to(socket.id).emit('error-manager', {
             success: false,
             path: 'get-thread',
@@ -304,6 +332,7 @@ class Socket {
             error: 'invalid parameters'
           });
         } else {
+          let guest_socket;
           this.room_model.addGuest(username, data.add_user, data.room_id)
             .then(() => {
               this.io.to(socket.id).emit('add-guest-ack', {
@@ -318,11 +347,16 @@ class Socket {
             })
             .then((user) => {
               if (user.online) {
-                this.io.to(user.socket_id).emit('added-room', {
-                  success: true,
-                  room_id: data.room_id
-                });
+                guest_socket = user.socket_id;
+                return this.room_model.getRoom(username, data.room_id, { _id: 1, name: 1 });
               }
+            })
+            .then((room) => {
+              this.io.to(guest_socket).emit('added-room', {
+                success: true,
+                room_name: room.name,
+                room_id: room._id
+              });
             })
             .catch((error) => {
               this.io.to(socket.id).emit('error-manager', {
@@ -351,13 +385,17 @@ class Socket {
                   error: 'cannot join room'
                 });
               } else {
-                socket.join(data.room_id, () => {
-                  this.io.to(socket.id).emit('join-room-ack', {
-                    success: true,
-                    room: data.room_id
-                  });
-                });
+                return this.room_model.getRoom(username, data.room_id, { _id: 1, name: 1 });
               }
+            })
+            .then((room) => {
+              socket.join(data.room_id, () => {
+                this.io.to(socket.id).emit('join-room-ack', {
+                  success: true,
+                  room_name: room.name,
+                  room_id: room._id
+                });
+              });
             })
             .catch((error) => {
               this.io.to(socket.id).emit('error-manager', {
@@ -369,6 +407,37 @@ class Socket {
         }
       });
 
+      socket.on('leave-room', (data) => {
+        if (!data.room_id) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'leave-room',
+            error: 'invalid parameters'
+          });
+        } else {
+          socket.leave(data.room_id, () => {
+            this.room_model.leaveGuest(username, data.room_id)
+              .then(() => {
+                this.io.to(socket.id).emit('leave-room-ack', {
+                  success: true,
+                  room_id: data.room_id
+                });
+                this.io.to(data.room_id).emit('left-guest', {
+                  success: true,
+                  guest: username
+                });
+              })
+              .catch((error) => {
+                this.io.to(socket.id).emit('error-manager', {
+                  success: false,
+                  path: 'leave-room',
+                  error: error
+                });
+              });
+          });
+        }
+      });
+
       socket.on('remove-guest', (data) => {
         if (!data.room_id || !data.rm_user) {
           this.io.to(socket.id).emit('error-manager', {
@@ -377,7 +446,7 @@ class Socket {
             error: 'invalid parameters'
           });
         } else {
-          this.this.user_model.isConnectedUser(data.rm_user)
+          this.user_model.isConnectedUser(data.rm_user)
             .then((user) => {
               if (user.online) {
                 // disconnect user from room
@@ -417,7 +486,7 @@ class Socket {
             error: 'invalid parameters'
           });
         } else {
-          this.this.user_model.isConnectedUser(data.wl_user)
+          this.user_model.isConnectedUser(data.wl_user)
             .then((user) => {
               if (user.online) {
                 user.socket_id.leave(data.room_id, () => { // meh
@@ -548,6 +617,7 @@ class Socket {
 
   joinRooms(username, socket) {
     return new Promise((resolve, reject) => {
+      let roomsToJoin;
       this.user_model.getUser(username, { rooms: 1 })
         .then((user) => {
           if (!user.rooms) {
@@ -556,13 +626,21 @@ class Socket {
               rooms: null
             });
           } else {
-            socket.join(user.rooms, () => {
-              this.io.to(socket.id).emit('joined-rooms', {
-                success: true,
-                rooms: user.rooms
-              });
-            });
+            roomsToJoin = user.rooms;
+            let tmp = [];
+            for (let i = 0; i < user.rooms.length; i++) {
+              tmp.push(this.room_model.getRoom(username, user.rooms[i], { _id: 1, name: 1 }));
+            }
+            return Promise.all(tmp);
           }
+        })
+        .then((rooms) => {
+          socket.join(roomsToJoin, () => {
+            this.io.to(socket.id).emit('joined-rooms', {
+              success: true,
+              rooms: rooms
+            });
+          });
           resolve();
         })
         .catch((error) => {

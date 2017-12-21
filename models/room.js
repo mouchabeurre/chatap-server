@@ -218,6 +218,39 @@ class Room {
     });
   }
 
+  leaveGuest(performer, room_id) {
+    return new Promise((resolve, reject) => {
+      this.isGuest(performer, room_id)
+        .then((is_guest) => {
+          if (!is_guest) {
+            throw new Error('you cannot perform this action');
+          } else {
+            return this.getPrivilege(performer, room_id);
+          }
+        })
+        .then((privilege) => {
+          if (privilege === 'owner') {
+            throw new Error('you cannot remove owner');
+          } else {
+            let user_update = this.user_model.updateRooms(performer, room_id, 'remove');
+            let room_update = this.model.findOneAndUpdate({ _id: room_id },
+              {
+                $pull: {
+                  guests: { user: performer }
+                }
+              }, { upsert: true, new: true }).exec();
+            return Promise.all([user_update, room_update]);
+          }
+        })
+        .then((update_result) => {
+          resolve(update_result[1].guests);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    })
+  }
+
   removeGuest(performer, username, room_id) {
     return new Promise((resolve, reject) => {
       this.isGuest(performer, room_id)
@@ -362,6 +395,36 @@ class Room {
           resolve(response);
         })
         .catch((error) => {
+          reject(error);
+        });
+    });
+  }
+
+  renameRoom(username, room_id, new_name) {
+    return new Promise((resolve, reject) => {
+      this.isGuest(username, room_id)
+        .then((is_guest) => {
+          if (!is_guest) {
+            throw new Error('you cannot perform this action');
+          } else {
+            return this.getPrivilege(username, room_id);
+          }
+        })
+        .then((privilege) => {
+          if (privilege == 'basic') {
+            throw new Error('not enough privilege');
+          } else {
+            return this.model.findOneAndUpdate({ _id: room_id }, {
+              $set: {
+                name: new_name
+              }
+            }, { new: true }).exec();
+          }
+        })
+        .then((room) => {
+          resolve(room.name);
+        })
+        .catch(error => {
           reject(error);
         });
     });
