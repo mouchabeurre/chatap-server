@@ -134,7 +134,9 @@ class Socket {
               });
               this.io.to(data.room_id).emit('new-thread', {
                 success: true,
-                thread_id: thread._id
+                room_id: data.room_id,
+                _id: thread._id,
+                title: thread.title
               });
             })
             .catch((error) => {
