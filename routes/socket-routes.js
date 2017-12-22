@@ -51,13 +51,15 @@ class Socket {
                   success: true,
                   room_id: room._id,
                   room_name: room.name,
+                  room_date: room.date,
                   guests: data.guests
                 });
               } else {
                 this.io.to(socket.id).emit('create-room-ack', {
                   success: true,
                   room_id: room._id,
-                  room_name: room.name
+                  room_name: room.name,
+                  room_date: room.date
                 });
               }
             })
@@ -348,14 +350,15 @@ class Socket {
             .then((user) => {
               if (user.online) {
                 guest_socket = user.socket_id;
-                return this.room_model.getRoom(username, data.room_id, { _id: 1, name: 1 });
+                return this.room_model.getRoom(username, data.room_id, { _id: 1, name: 1, date: 1 });
               }
             })
             .then((room) => {
               this.io.to(guest_socket).emit('added-room', {
                 success: true,
                 room_name: room.name,
-                room_id: room._id
+                room_id: room._id,
+                room_date: room.date
               });
             })
             .catch((error) => {
@@ -629,7 +632,7 @@ class Socket {
             roomsToJoin = user.rooms;
             let tmp = [];
             for (let i = 0; i < user.rooms.length; i++) {
-              tmp.push(this.room_model.getRoom(username, user.rooms[i], { _id: 1, name: 1 }));
+              tmp.push(this.room_model.getRoom(username, user.rooms[i], { _id: 1, name: 1, date: 1 }));
             }
             return Promise.all(tmp);
           }
