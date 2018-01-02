@@ -149,6 +149,65 @@ class Socket {
         }
       });
 
+      socket.on('rename-thread', (data) => {
+        if (!data.room_id || !data.thread_id || !data.new_name) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'rename-thread',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.thread_model.renameThread(username, data.room_id, data.thread_id, data.new_name)
+            .then((thread_name) => {
+              this.io.to(socket.id).emit('rename-thread-ack', {
+                success: true
+              });
+              this.io.to(data.room_id).emit('thread-renamed', {
+                success: true,
+                room_id: data.room_id,
+                thread_id: data.thread_id,
+                thread_name: thread_name
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'rename-thread',
+                error: error
+              });
+            });
+        }
+      });
+
+      socket.on('delete-thread', (data) => {
+        if (!data.room_id || !data.thread_id) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'delete-thread',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.thread_model.deleteThread(username, data.room_id, data.thread_id)
+            .then((deleted) => {
+              this.io.to(socket.id).emit('delete-thread-ack', {
+                success: true
+              });
+              this.io.to(data.room_id).emit('deleted-thread', {
+                success: true,
+                room_id: data.room_id,
+                thread_id: data.thread_id
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'delete-thread',
+                error: error
+              });
+            });
+        }
+      });
+
       socket.on('create-thread', (data) => {
         if (!data.title || !data.room_id) {
           this.io.to(socket.id).emit('error-manager', {

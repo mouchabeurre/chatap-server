@@ -134,5 +134,64 @@ class Thread {
     });
   }
 
+  renameThread(performer, room_id, thread_id, new_name) {
+    return new Promise((resolve, reject) => {
+      require('./room').isGuest(performer, room_id)
+        .then((is_guest) => {
+          if (!is_guest) {
+            throw new Error('you cannot perform this action');
+          } else {
+            return require('./room').getPrivilege(performer, room_id);
+          }
+        })
+        .then((privilege) => {
+          if (privilege == 'basic') {
+            throw new Error('not enough privilege');
+          } else {
+            return this.model.findOneAndUpdate({ _id: thread_id }, {
+              $set: {
+                title: new_name
+              }
+            }, { new: true }).exec();
+          }
+        })
+        .then((thread) => {
+          resolve(thread.title);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
+  deleteThread(performer, room_id, thread_id) {
+    return new Promise((resolve, reject) => {
+      require('./room').getPrivilege(performer, room_id)
+        .then((privilege) => {
+          if (privilege == 'basic') {
+            throw new Error('not enough privilege');
+          } else {
+            return this.model.findOne({ _id: thread_id }).exec();
+          }
+        })
+        .then((thread) => {
+          let messages = [];
+          for (let i = 0; i < thread.feed.length; i++) {
+            messages.push(this.message_model.deleteMessage(thread.feed[i]));
+          }
+          return Promise.all(messages);
+        })
+        .then((messages) => {
+          return this.model.remove({ _id: thread_id }).exec();
+        })
+        .then((thread) => {
+          resolve(true);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
 }
 module.exports = new Thread();

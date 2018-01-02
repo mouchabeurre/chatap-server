@@ -65,5 +65,17 @@ class Message {
     });
   }
 
+  deleteMessage(message_id) {
+    return new Promise((resolve, reject) => {
+      this.model.remove({ _id: message_id }).exec()
+        .then((message) => {
+          resolve(true)
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
 }
 module.exports = new Message();
