@@ -87,6 +87,22 @@ class Socket {
                 success: true,
                 room: room
               });
+              const guests = room.guests.map(guest => {
+                return this.user_model.isConnectedUser(guest.user);
+              });
+              return Promise.all(guests);
+            })
+            .then((guests) => {
+              const loadout = guests.map(guest => {
+                return {
+                  user: guest.username,
+                  status: guest.online
+                };
+              });
+              this.io.to(socket.id).emit('get-guests-ack', {
+                success: true,
+                guests: loadout
+              });
             })
             .catch((error) => {
               this.io.to(socket.id).emit('error-manager', {
@@ -632,6 +648,7 @@ class Socket {
         .then((user) => {
           let tmp = [];
           for (let i = 0; i < user.rooms.length; i++) {
+            loadout.room_id = user.rooms[i];
             tmp.push(new Promise((resolve, reject) => {
               resolve(socket.to(user.rooms[i]).emit(path, loadout));
             }));
