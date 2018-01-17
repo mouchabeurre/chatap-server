@@ -575,5 +575,11 @@ class User {
     });
   }
 
+  searchUsers(username, query){
+    return new Promise((resolve, reject) => {
+      
+    });
+  }
+
 }
 module.exports = new User();

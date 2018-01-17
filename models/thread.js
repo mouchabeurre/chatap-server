@@ -111,14 +111,7 @@ class Thread {
           if (!is_guest) {
             throw new Error('invalid parameters');
           } else {
-            return this.model.findOne({ _id: thread_id }, options)
-              .populate({
-                path: 'feed',
-                sort: {
-                  date: -1
-                }
-              })
-              .exec();
+            return this.model.findOne({ _id: thread_id }, options).exec();
           }
         })
         .then((thread) => {

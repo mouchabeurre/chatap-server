@@ -140,6 +140,45 @@ class Socket {
         }
       });
 
+      socket.on('delete-room', (data) => {
+        if (!data.room_id) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'delete-room',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.room_model.deleteRoom(username, data.room_id)
+            .then((guests) => {
+              const promises = guests.map(guest => {
+                return this.user_model.isConnectedUser(guest);
+              });
+              return Promise.all(promises);
+            })
+            .then((connected_guests) => {
+              connected_guests.map(guest => {
+                if (guest.online) {
+                  this.io.to(guest.socket_id).emit('removed-room', {
+                    success: true,
+                    room_id: data.room_id
+                  });
+                }
+              });
+              this.io.to(socket.id).emit('delete-room-ack', {
+                success: true,
+                room_id: data.room_id
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'delete-room',
+                error: error
+              });
+            });
+        }
+      });
+
       socket.on('get-thread', (data) => {
         if (!data.thread_id || !data.room_id) {
           this.io.to(socket.id).emit('error-manager', {
@@ -148,7 +187,7 @@ class Socket {
             error: 'invalid parameters'
           });
         } else {
-          this.thread_model.getThread(username, data.room_id, data.thread_id)
+          this.thread_model.getThread(username, data.room_id, data.thread_id, { feed: 0 })
             .then((thread) => {
               this.io.to(socket.id).emit('get-thread-ack', {
                 success: true,
@@ -159,6 +198,31 @@ class Socket {
               this.io.to(socket.id).emit('error-manager', {
                 success: false,
                 path: 'get-thread',
+                error: error
+              });
+            });
+        }
+      });
+
+      socket.on('get-stream', (data) => {
+        if (!data.thread_id || !data.room_id || data.offset === undefined) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'get-stream',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.message_model.getStream(username, data.room_id, data.thread_id, data.offset)
+            .then((stream) => {
+              this.io.to(socket.id).emit('get-stream-ack', {
+                success: true,
+                stream: stream
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'get-stream',
                 error: error
               });
             });
@@ -395,6 +459,31 @@ class Socket {
               this.io.to(socket.id).emit('error-manager', {
                 success: false,
                 path: 'block-user',
+                error: error
+              });
+            });
+        }
+      });
+
+      socket.on('search-user', (data) => {
+        if (!data.room_id || !data.query) {
+          this.io.to(socket.id).emit('error-manager', {
+            success: false,
+            path: 'search-user',
+            error: 'invalid parameters'
+          });
+        } else {
+          this.user_model.searchUsers(username, data.query)
+            .then((result) => {
+              this.io.to(user_blocked.socket_id).emit('search-user-ack', {
+                success: true,
+                users: result
+              });
+            })
+            .catch((error) => {
+              this.io.to(socket.id).emit('error-manager', {
+                success: false,
+                path: 'search-user',
                 error: error
               });
             });

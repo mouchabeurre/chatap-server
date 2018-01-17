@@ -77,5 +77,24 @@ class Message {
     });
   }
 
+  getStream(performer, room_id, thread_id, offset) {
+    return new Promise((resolve, reject) => {
+      require('./room').isGuest(performer, room_id)
+        .then((is_guest) => {
+          if (!is_guest) {
+            throw new Error('invalid parameters');
+          } else {
+            return this.model.find({ thread: thread_id }).sort({ date: -1 }).limit(12).skip(offset).exec();
+          }
+        })
+        .then((stream) => {
+          resolve(stream);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  }
+
 }
 module.exports = new Message();

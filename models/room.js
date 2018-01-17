@@ -161,6 +161,52 @@ class Room {
     });
   }
 
+  deleteRoom(performer, room_id) {
+    return new Promise((resolve, reject) => {
+      let threads_promises;
+      let guests_promises;
+      let guests;
+      this.isGuest(performer, room_id)
+        .then((is_guest) => {
+          if (!is_guest) {
+            throw new Error('you cannot perform this action');
+          } else {
+            return this.getPrivilege(performer, room_id);
+          }
+        })
+        .then((privilege) => {
+          if (privilege !== 'owner') {
+            throw new Error('not enough privilege');
+          } else {
+            return this.model.findOne({ _id: room_id }, { mainthread: 1, threads: 1, guests: 1 }).exec();
+          }
+        })
+        .then((room) => {
+          guests = room.guests;
+          threads_promises = room.threads.map(thread => {
+            return require('./thread').deleteThread(performer, room_id, thread);
+          })
+          threads_promises.push(require('./thread').deleteThread(performer, room_id, room.mainthread));
+          return Promise.all(threads_promises);
+        })
+        .then(() => {
+          guests_promises = room.guests.map(guest => {
+            return this.user_model.updateRooms(guest, room_id, 'remove');
+          });
+          return Promise.all(guests_promises);
+        })
+        .then(() => {
+          return this.model.remove({ _id: thread_id }).exec();
+        })
+        .then(() => {
+          resolve(guests);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
   addGuest(performer, username, room_id, privilege = 'basic') {
     return new Promise((resolve, reject) => {
       this.isGuest(performer, room_id)
