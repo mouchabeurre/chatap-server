@@ -18,6 +18,12 @@ class Socket {
     this.thread_model = Thread;
   }
 
+  emitLag(to, action, loadout) {
+    setTimeout(() => {
+      this.io.to(to).emit(action, loadout);
+    }, 350);
+  }
+
   socketEvents() {
 
     this.io.on('connect', socketioJwt.authorize({
@@ -29,7 +35,7 @@ class Socket {
 
       this.init(username, socket)
         .catch((error) => {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'authenticate',
             error: error
@@ -38,7 +44,7 @@ class Socket {
 
       socket.on('create-room', (data) => {
         if (!data.name) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'create-room',
             error: 'invalid parameters'
@@ -47,7 +53,7 @@ class Socket {
           this.room_model.createRoom(data.name, username)
             .then((room) => {
               if (data.guests) {
-                this.io.to(socket.id).emit('create-room-ack', {
+                this.emitLag(socket.id, 'create-room-ack', {
                   success: true,
                   room_id: room._id,
                   room_name: room.name,
@@ -55,7 +61,7 @@ class Socket {
                   guests: data.guests
                 });
               } else {
-                this.io.to(socket.id).emit('create-room-ack', {
+                this.emitLag(socket.id, 'create-room-ack', {
                   success: true,
                   room_id: room._id,
                   room_name: room.name,
@@ -64,7 +70,7 @@ class Socket {
               }
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'create-room',
                 error: error
@@ -75,7 +81,7 @@ class Socket {
 
       socket.on('get-room', (data) => {
         if (!data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'get-room',
             error: 'invalid parameters'
@@ -83,7 +89,7 @@ class Socket {
         } else {
           this.room_model.getRoom(username, data.room_id)
             .then((room) => {
-              this.io.to(socket.id).emit('get-room-ack', {
+              this.emitLag(socket.id, 'get-room-ack', {
                 success: true,
                 room: room
               });
@@ -99,13 +105,13 @@ class Socket {
                   status: guest.online
                 };
               });
-              this.io.to(socket.id).emit('get-guests-ack', {
+              this.emitLag(socket.id, 'get-guests-ack', {
                 success: true,
                 guests: loadout
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'get-room',
                 error: error
@@ -116,7 +122,7 @@ class Socket {
 
       socket.on('rename-room', (data) => {
         if (!data.room_id || !data.new_name) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'rename-room',
             error: 'invalid parameters'
@@ -124,14 +130,14 @@ class Socket {
         } else {
           this.room_model.renameRoom(username, data.room_id, data.new_name)
             .then((room_name) => {
-              this.io.to(data.room_id).emit('rename-room-ack', {
+              this.emitLag(data.room_id, 'rename-room-ack', {
                 success: true,
                 room_id: data.room_id,
                 room_name: room_name
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'rename-room',
                 error: error
@@ -142,7 +148,7 @@ class Socket {
 
       socket.on('delete-room', (data) => {
         if (!data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'delete-room',
             error: 'invalid parameters'
@@ -158,19 +164,19 @@ class Socket {
             .then((connected_guests) => {
               connected_guests.map(guest => {
                 if (guest.online) {
-                  this.io.to(guest.socket_id).emit('removed-room', {
+                  this.emitLag(guest.socket_id, 'removed-room', {
                     success: true,
                     room_id: data.room_id
                   });
                 }
               });
-              this.io.to(socket.id).emit('delete-room-ack', {
+              this.emitLag(socket.id, 'delete-room-ack', {
                 success: true,
                 room_id: data.room_id
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'delete-room',
                 error: error
@@ -181,7 +187,7 @@ class Socket {
 
       socket.on('get-thread', (data) => {
         if (!data.thread_id || !data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'get-thread',
             error: 'invalid parameters'
@@ -189,13 +195,13 @@ class Socket {
         } else {
           this.thread_model.getThread(username, data.room_id, data.thread_id, { feed: 0 })
             .then((thread) => {
-              this.io.to(socket.id).emit('get-thread-ack', {
+              this.emitLag(socket.id, 'get-thread-ack', {
                 success: true,
                 thread: thread
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'get-thread',
                 error: error
@@ -206,7 +212,7 @@ class Socket {
 
       socket.on('get-stream', (data) => {
         if (!data.thread_id || !data.room_id || data.offset === undefined) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'get-stream',
             error: 'invalid parameters'
@@ -214,13 +220,13 @@ class Socket {
         } else {
           this.message_model.getStream(username, data.room_id, data.thread_id, data.offset)
             .then((stream) => {
-              this.io.to(socket.id).emit('get-stream-ack', {
+              this.emitLag(socket.id, 'get-stream-ack', {
                 success: true,
                 stream: stream
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'get-stream',
                 error: error
@@ -231,7 +237,7 @@ class Socket {
 
       socket.on('rename-thread', (data) => {
         if (!data.room_id || !data.thread_id || !data.new_name) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'rename-thread',
             error: 'invalid parameters'
@@ -239,10 +245,10 @@ class Socket {
         } else {
           this.thread_model.renameThread(username, data.room_id, data.thread_id, data.new_name)
             .then((thread_name) => {
-              this.io.to(socket.id).emit('rename-thread-ack', {
+              this.emitLag(socket.id, 'rename-thread-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('thread-renamed', {
+              this.emitLag(data.room_id, 'thread-renamed', {
                 success: true,
                 room_id: data.room_id,
                 thread_id: data.thread_id,
@@ -250,7 +256,7 @@ class Socket {
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'rename-thread',
                 error: error
@@ -261,7 +267,7 @@ class Socket {
 
       socket.on('delete-thread', (data) => {
         if (!data.room_id || !data.thread_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'delete-thread',
             error: 'invalid parameters'
@@ -269,17 +275,17 @@ class Socket {
         } else {
           this.thread_model.deleteThread(username, data.room_id, data.thread_id)
             .then((deleted) => {
-              this.io.to(socket.id).emit('delete-thread-ack', {
+              this.emitLag(socket.id, 'delete-thread-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('deleted-thread', {
+              this.emitLag(data.room_id, 'deleted-thread', {
                 success: true,
                 room_id: data.room_id,
                 thread_id: data.thread_id
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'delete-thread',
                 error: error
@@ -290,7 +296,7 @@ class Socket {
 
       socket.on('create-thread', (data) => {
         if (!data.title || !data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'create-thread',
             error: 'invalid parameters'
@@ -298,10 +304,10 @@ class Socket {
         } else {
           this.room_model.addThread(username, data.room_id, data.title)
             .then((thread) => {
-              this.io.to(socket.id).emit('create-thread-ack', {
+              this.emitLag(socket.id, 'create-thread-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('new-thread', {
+              this.emitLag(data.room_id, 'new-thread', {
                 success: true,
                 room_id: data.room_id,
                 _id: thread._id,
@@ -309,7 +315,7 @@ class Socket {
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'create-thread',
                 error: error
@@ -320,7 +326,7 @@ class Socket {
 
       socket.on('send-thread', (data) => {
         if (!data.content || !data.room_id || !data.thread_id || !data.media) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'send-thread',
             error: 'invalid parameters'
@@ -328,17 +334,17 @@ class Socket {
         } else {
           this.thread_model.addMessage(username, data.room_id, data.thread_id, data.media, data.content)
             .then((new_message) => {
-              this.io.to(socket.id).emit('send-thread-ack', {
+              this.emitLag(socket.id, 'send-thread-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('new-message', {
+              this.emitLag(data.room_id, 'new-message', {
                 thread_id: new_message.thread,
                 room_id: data.room_id,
                 message: new_message
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'send-thread',
                 error: error
@@ -349,7 +355,7 @@ class Socket {
 
       socket.on('send-friend-request', (data) => {
         if (!data.requested_user) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'send-friend-request',
             error: 'invalid parameters'
@@ -358,12 +364,12 @@ class Socket {
           this.user_model.requestFriend(username, data.requested_user)
             .then((result) => {
               if (!result.requested) {
-                this.io.to(socket.id).emit('send-friend-request-ack', {
+                this.emitLag(socket.id, 'send-friend-request-ack', {
                   success: true,
                   requested: data.requested_user
                 });
               } else {
-                this.io.to(socket.id).emit('send-friend-request-ack', {
+                this.emitLag(socket.id, 'send-friend-request-ack', {
                   success: true,
                   requested: data.requested_user
                 });
@@ -372,14 +378,14 @@ class Socket {
             })
             .then((requested) => {
               if (requested.online) {
-                this.io.to(requested.socket_id).emit('friend-request', {
+                this.emitLag(requested.socket_id, 'friend-request', {
                   success: true,
                   requester: username
                 });
               }
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'send-friend-request',
                 error: error
@@ -390,7 +396,7 @@ class Socket {
 
       socket.on('reply-friend-request', (data) => {
         if (!data.action || !data.requester) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'reply-friend-request',
             error: 'invalid parameters'
@@ -403,26 +409,26 @@ class Socket {
             .then((requester) => {
               if (requester.online) {
                 if (data.action === 'deny') {
-                  this.io.to(requester.socket_id).emit('response-friend-request', {
+                  this.emitLag(requester.socket_id, 'response-friend-request', {
                     success: true,
                     requested: data.requester,
                     accepted: false
                   });
                 } else {
-                  this.io.to(requester.socket_id).emit('response-friend-request', {
+                  this.emitLag(requester.socket_id, 'response-friend-request', {
                     success: true,
                     requested: data.requester,
                     accepted: true
                   });
                 }
               }
-              this.io.to(socket.id).emit('reply-friend-request-ack', {
+              this.emitLag(socket.id, 'reply-friend-request-ack', {
                 success: true,
                 requested: data.requested_user
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'reply-friend-request',
                 error: error
@@ -433,7 +439,7 @@ class Socket {
 
       socket.on('block-user', (data) => {
         if (!data.user_block) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'block-user',
             error: 'invalid parameters'
@@ -445,18 +451,18 @@ class Socket {
             })
             .then((user_blocked) => {
               if (user_blocked.online) {
-                this.io.to(user_blocked.socket_id).emit('remove-friend', {
+                this.emitLag(user_blocked.socket_id, 'remove-friend', {
                   success: true,
                   unfriend: username
                 });
               }
-              this.io.to(socket.id).emit('block-user-ack', {
+              this.emitLag(socket.id, 'block-user-ack', {
                 success: true,
                 blocked: data.user_block
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'block-user',
                 error: error
@@ -467,7 +473,7 @@ class Socket {
 
       socket.on('search-user', (data) => {
         if (!data.room_id || !data.query) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'search-user',
             error: 'invalid parameters'
@@ -475,13 +481,13 @@ class Socket {
         } else {
           this.user_model.searchUsers(username, data.query)
             .then((result) => {
-              this.io.to(user_blocked.socket_id).emit('search-user-ack', {
+              this.emitLag(user_blocked.socket_id, 'search-user-ack', {
                 success: true,
                 users: result
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'search-user',
                 error: error
@@ -492,7 +498,7 @@ class Socket {
 
       socket.on('add-guest', (data) => {
         if (!data.room_id || !data.add_user) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'add-guest',
             error: 'invalid parameters'
@@ -501,10 +507,10 @@ class Socket {
           let guest_socket;
           this.room_model.addGuest(username, data.add_user, data.room_id)
             .then(() => {
-              this.io.to(socket.id).emit('add-guest-ack', {
+              this.emitLag(socket.id, 'add-guest-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('new-guest', {
+              this.emitLag(data.room_id, 'new-guest', {
                 success: true,
                 room_id: data.room_id,
                 guest: data.add_user
@@ -518,7 +524,7 @@ class Socket {
               }
             })
             .then((room) => {
-              this.io.to(guest_socket).emit('added-room', {
+              this.emitLag(guest_socket, 'added-room', {
                 success: true,
                 room_name: room.name,
                 room_id: room._id,
@@ -526,7 +532,7 @@ class Socket {
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'add-guest',
                 error: error
@@ -537,7 +543,7 @@ class Socket {
 
       socket.on('join-room', (data) => {
         if (!data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'join-room',
             error: 'invalid parameters'
@@ -546,7 +552,7 @@ class Socket {
           this.room_model.isGuest(username, data.room_id)
             .then((is_guest) => {
               if (!is_guest) {
-                this.io.to(socket.id).emit('error-manager', {
+                this.emitLag(socket.id, 'error-manager', {
                   success: false,
                   path: 'join-room',
                   error: 'cannot join room'
@@ -557,7 +563,7 @@ class Socket {
             })
             .then((room) => {
               socket.join(data.room_id, () => {
-                this.io.to(socket.id).emit('join-room-ack', {
+                this.emitLag(socket.id, 'join-room-ack', {
                   success: true,
                   room_name: room.name,
                   room_id: room._id
@@ -565,7 +571,7 @@ class Socket {
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'join-room',
                 error: error
@@ -576,7 +582,7 @@ class Socket {
 
       socket.on('leave-room', (data) => {
         if (!data.room_id) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'leave-room',
             error: 'invalid parameters'
@@ -585,17 +591,17 @@ class Socket {
           socket.leave(data.room_id, () => {
             this.room_model.leaveGuest(username, data.room_id)
               .then(() => {
-                this.io.to(socket.id).emit('leave-room-ack', {
+                this.emitLag(socket.id, 'leave-room-ack', {
                   success: true,
                   room_id: data.room_id
                 });
-                this.io.to(data.room_id).emit('left-guest', {
+                this.emitLag(data.room_id, 'left-guest', {
                   success: true,
                   guest: username
                 });
               })
               .catch((error) => {
-                this.io.to(socket.id).emit('error-manager', {
+                this.emitLag(socket.id, 'error-manager', {
                   success: false,
                   path: 'leave-room',
                   error: error
@@ -607,7 +613,7 @@ class Socket {
 
       socket.on('remove-guest', (data) => {
         if (!data.room_id || !data.rm_user) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'remove-guest',
             error: 'invalid parameters'
@@ -618,7 +624,7 @@ class Socket {
               if (user.online) {
                 // disconnect user from room
                 // user.socket_id.leave(data.room_id, () => {
-                //   this.io.to(user.socket_id).emit('removed-room', {
+                //   this.emitLag(user.socket_id, 'removed-room', {
                 //     success: true,
                 //     room_id: data.room_id
                 //   });
@@ -627,16 +633,16 @@ class Socket {
               return this.room_model.removeGuest(username, data.rm_user, data.room_id);
             })
             .then((room_guests) => {
-              this.io.to(socket.id).emit('remove-guest-ack', {
+              this.emitLag(socket.id, 'remove-guest-ack', {
                 success: true
               });
-              this.io.to(data.room_id).emit('left-guest', {
+              this.emitLag(data.room_id, 'left-guest', {
                 success: true,
                 guest: data.rm_user
               });
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'remove-guest',
                 error: error
@@ -647,7 +653,7 @@ class Socket {
 
       socket.on('whitelist-guest', (data) => {
         if (!data.room_id || !data.wl_user) {
-          this.io.to(socket.id).emit('error-manager', {
+          this.emitLag(socket.id, 'error-manager', {
             success: false,
             path: 'whitelist-guest',
             error: 'invalid parameters'
@@ -657,7 +663,7 @@ class Socket {
             .then((user) => {
               if (user.online) {
                 user.socket_id.leave(data.room_id, () => { // meh
-                  this.io.to(user.socket_id).emit('removed-room', {
+                  this.emitLag(user.socket_id, 'removed-room', {
                     success: true,
                     room_id: data.room_id
                   });
@@ -670,11 +676,11 @@ class Socket {
                 success: true,
                 guest: data.wl_user,
               }
-              this.io.to(socket.id).emit('whitelist-guest-ack', loadout);
-              this.io.to(data.room_id).emit('whitelisted-guest', loadout);
+              this.emitLag(socket.id, 'whitelist-guest-ack', loadout);
+              this.emitLag(data.room_id, 'whitelisted-guest', loadout);
             })
             .catch((error) => {
-              this.io.to(socket.id).emit('error-manager', {
+              this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'whitelist-guest',
                 error: error
@@ -739,7 +745,7 @@ class Socket {
           for (let i = 0; i < user.rooms.length; i++) {
             loadout.room_id = user.rooms[i];
             tmp.push(new Promise((resolve, reject) => {
-              resolve(socket.to(user.rooms[i]).emit(path, loadout));
+              resolve(socket.to(user.rooms[i], path, loadout));
             }));
           }
           return Promise.all(tmp);
@@ -768,7 +774,7 @@ class Socket {
           for (let i = 0; i < friends_status.length; i++) {
             if (friends_status[i].online) {
               send.push(new Promise((resolve, reject) => {
-                resolve(this.io.to(friends_status[i].socket_id).emit(path, loadout));
+                resolve(this.emitLag(friends_status[i].socket_id, path, loadout));
               }));
             }
           }
@@ -789,7 +795,7 @@ class Socket {
       this.user_model.getUser(username, { rooms: 1 })
         .then((user) => {
           if (!user.rooms) {
-            this.io.to(socket.id).emit('joined-rooms', {
+            this.emitLag(socket.id, 'joined-rooms', {
               success: true,
               rooms: null
             });
@@ -804,7 +810,7 @@ class Socket {
         })
         .then((rooms) => {
           socket.join(roomsToJoin, () => {
-            this.io.to(socket.id).emit('joined-rooms', {
+            this.emitLag(socket.id, 'joined-rooms', {
               success: true,
               rooms: rooms
             });
@@ -828,7 +834,7 @@ class Socket {
           return Promise.all(tmp);
         })
         .then((friends) => {
-          this.io.to(socket_id).emit('connected-friends', {
+          this.emitLag(socket_id, 'connected-friends', {
             success: true,
             friends_status: friends
           });

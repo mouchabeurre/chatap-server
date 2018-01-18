@@ -120,7 +120,7 @@ class Routes {
       const password = request.body.password;
 
       if (!username || !password) {
-        let loadout = {
+        const loadout = {
           success: false,
           method: 'post',
           path: 'user/authenticate',
@@ -128,7 +128,20 @@ class Routes {
         }
         response.status(400).json(loadout);
       } else {
-        this.user_model.getUser(username)
+        this.user_model.isConnectedUser(username)
+          .then((status) => {
+            if (status.online) {
+              const loadout = {
+                success: false,
+                method: 'post',
+                path: 'user/authenticate',
+                error: 'user already connected'
+              }
+              response.status(412).json(loadout);
+            } else {
+              return this.user_model.getUser(username);
+            }
+          })
           .then((user) => {
             return this.user_model.comparePassword(password, user.password);
           })
@@ -140,13 +153,13 @@ class Routes {
               }, secret, {
                   expiresIn: 604800 // 1 week
                 });
-              let loadout = {
+              const loadout = {
                 success: true,
                 token: token
               }
               response.status(200).json(loadout);
             } else {
-              let loadout = {
+              const loadout = {
                 success: false,
                 method: 'post',
                 path: 'user/authenticate',
