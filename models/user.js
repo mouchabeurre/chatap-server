@@ -575,9 +575,65 @@ class User {
     });
   }
 
-  searchUsers(username, query){
+  searchUsers(username, room_id, query) {
     return new Promise((resolve, reject) => {
-      
+      let results;
+      return require('./room').isGuest(username, room_id)
+        .then((is_user) => {
+          if (!is_user) {
+            throw new Error('cannot perform this action');
+          } else {
+            // query = '/' + query + '/i';
+            return this.model.find({ _id: { $regex: query }, }, { _id: 1, blocked: 1, rooms: 1 }).exec()
+          }
+        })
+        .then((users) => {
+          if (!users) {
+            resolve(null);
+          } else {
+            results = users;
+            let whitelisted = results.map(user => {
+              return require('./room').isWhitelisted(user._id, room_id);
+            });
+            return Promise.all(whitelisted);
+          }
+        })
+        .then((are_whitelisted) => {
+          for (let i = 0; i < results.length; i++) {
+            if (are_whitelisted[i]) {
+              results.splice(i, 1);
+            }
+          }
+          if (results.length == 0) {
+            resolve(null);
+          } else {
+            let guests = results.map(user => {
+              return require('./room').isGuest(user._id, room_id);
+            });
+            return Promise.all(guests);
+          }
+        })
+        .then((are_guests) => {
+          for (let i = 0; i < results.length; i++) {
+            if (are_guests[i]) {
+              results.splice(i, 1);
+            }
+          }
+          if (results.length == 0) {
+            resolve(null);
+          } else {
+            let loadout = [];
+            for (let i = 0; i < results.length; i++) {
+              if (results[i]) {
+                loadout.push({ user: results[i]._id });
+              }
+            }
+            resolve(loadout);
+          }
+        })
+        .catch((error) => {
+          reject(error);
+        });
     });
   }
 

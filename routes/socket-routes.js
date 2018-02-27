@@ -479,9 +479,9 @@ class Socket {
             error: 'invalid parameters'
           });
         } else {
-          this.user_model.searchUsers(username, data.query)
+          this.user_model.searchUsers(username, data.room_id, data.query)
             .then((result) => {
-              this.emitLag(user_blocked.socket_id, 'search-user-ack', {
+              this.emitLag(socket.id, 'search-user-ack', {
                 success: true,
                 users: result
               });
@@ -506,14 +506,14 @@ class Socket {
         } else {
           let guest_socket;
           this.room_model.addGuest(username, data.add_user, data.room_id)
-            .then(() => {
+            .then((user) => {
               this.emitLag(socket.id, 'add-guest-ack', {
                 success: true
               });
               this.emitLag(data.room_id, 'new-guest', {
                 success: true,
                 room_id: data.room_id,
-                guest: data.add_user
+                guest: user
               });
               return this.user_model.isConnectedUser(data.add_user);
             })
@@ -524,14 +524,17 @@ class Socket {
               }
             })
             .then((room) => {
-              this.emitLag(guest_socket, 'added-room', {
-                success: true,
-                room_name: room.name,
-                room_id: room._id,
-                room_date: room.date
-              });
+              if (room) {
+                this.emitLag(guest_socket, 'added-room', {
+                  success: true,
+                  room_name: room.name,
+                  room_id: room._id,
+                  room_date: room.date
+                });
+              }
             })
             .catch((error) => {
+              console.log(error);
               this.emitLag(socket.id, 'error-manager', {
                 success: false,
                 path: 'add-guest',

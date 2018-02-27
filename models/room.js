@@ -256,7 +256,7 @@ class Room {
           }
         })
         .then((update_result) => {
-          resolve(update_result[1].guests);
+          resolve({ user: username, privilege: privilege });
         })
         .catch(error => {
           reject(error);
