@@ -600,6 +600,7 @@ class Socket {
                 });
                 this.emitLag(data.room_id, 'left-guest', {
                   success: true,
+                  room_id: data.room_id,
                   guest: username
                 });
               })

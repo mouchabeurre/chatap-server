@@ -599,7 +599,7 @@ class User {
           }
         })
         .then((are_whitelisted) => {
-          for (let i = 0; i < results.length; i++) {
+          for (let i = results.length; i >= 0; i--) {
             if (are_whitelisted[i]) {
               results.splice(i, 1);
             }
@@ -614,7 +614,7 @@ class User {
           }
         })
         .then((are_guests) => {
-          for (let i = 0; i < results.length; i++) {
+          for (let i = results.length; i >= 0; i--) {
             if (are_guests[i]) {
               results.splice(i, 1);
             }
