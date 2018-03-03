@@ -1,12 +1,14 @@
 'use strict';
 
 const express = require("express");
+const path = require('path');
 const http = require('http');
 const socketio = require('socket.io');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const passport = require('passport');
 const mongoose = require('mongoose');
+const csp = require('helmet-csp');
 
 const config = require('./utils/config');
 const restRoutes = require('./routes/rest-routes');
@@ -28,15 +30,28 @@ class Server {
   appConfig() {
     this.app.use(bodyParser.json());
     this.app.use(cors());
-    this.app.use(express.static('public'));
+    this.app.use(express.static(path.join(__dirname, 'public')));
     this.passportMiddleware();
-
+    // this.cspMiddleware();
   }
 
   passportMiddleware() {
     this.app.use(passport.initialize());
     this.app.use(passport.session());
     require('./utils/passport')(passport);
+  }
+
+  cspMiddleware() {
+    this.app.use(csp({
+      directives: {
+        defaultSrc: ["'self'", "messenjeur.herokuapp.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "messenjeur.herokuapp.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["wss://localhost", "wss://messenjeur.herokuapp.com"],
+        imgSrc: ["'self'", 'imgur.com']
+      },
+      browserSniff: false
+    }));
   }
 
   dbConfig() {
@@ -56,16 +71,16 @@ class Server {
   includeRoutes() {
     new restRoutes(this.app).routesConfig();
     new socketRoutes(this.socket).socketConfig();
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public/index.html'));
+    });
   }
 
   errorMiddleware() {
     this.app.use((error, request, response, next) => {
-      if (response.headersSent) {
-        return next(error);
-      }
-      console.log('sarouel');
+      console.log(error);
       response.status(500).json({
-        error: error.message
+        error: 'Server error'
       });
     });
   }
@@ -75,7 +90,7 @@ class Server {
     this.appConfig();
     this.dbConfig();
     this.includeRoutes();
-    // this.errorMiddleware();
+    this.errorMiddleware();
 
 
     this.http.listen(this.port, this.host, () => {

@@ -27,7 +27,7 @@ class Socket {
   socketEvents() {
 
     this.io.on('connect', socketioJwt.authorize({
-      secret: secret,
+      secret: process.env.SECRET || secret,
       timeout: 15000
     })).on('authenticated', (socket) => {
       const username = socket.decoded_token.userIdentity;

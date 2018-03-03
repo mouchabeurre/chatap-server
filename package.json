@@ -12,6 +12,7 @@
     "body-parser": "1.17.1",
     "cors": "2.8.4",
     "express": "4.16.2",
+    "helmet-csp": "^2.7.0",
     "jsonwebtoken": "8.1.0",
     "mongoose": "4.12.4",
     "passport": "0.4.0",
@@ -21,5 +22,5 @@
     "socketio-jwt": "github:root-core/socketio-jwt"
   },
   "author": "mouchabeurre",
-  "license": "MIT"
+  "license": "GPL3"
 }

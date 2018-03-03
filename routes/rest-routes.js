@@ -143,6 +143,15 @@ class Routes {
             }
           })
           .then((user) => {
+            if(!user) {
+              const loadout = {
+                success: false,
+                method: 'post',
+                path: 'user/authenticate',
+                error: 'wrong username or password'
+              }
+              response.status(412).json(loadout);
+            }
             return this.user_model.comparePassword(password, user.password);
           })
           .then((isMatch) => {
@@ -167,62 +176,6 @@ class Routes {
               }
               response.status(412).json(loadout);
             }
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
-    this.app.post(`${this.base}${this.room_model.prefix.single}/create`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const name = request.body.name;
-      const owner = request.user.username;
-      if (!name) {
-        let loadout = {
-          success: false,
-          method: 'post',
-          path: 'room/create',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.room_model.createRoom(name, owner)
-          .then((room) => {
-            let loadout = {
-              success: true,
-              room_id: room._id
-            }
-            response.status(201).json(loadout);
-          })
-          .catch((error) => {
-            next(error);
-          });
-      }
-    });
-
-    this.app.get(`${this.base}${this.room_model.prefix.single}/:room`, passport.authenticate('jwt', {
-      session: false
-    }), (request, response, next) => {
-      const room_id = request.params.room;
-      const performer = request.user.username;
-      if (!room_id || !performer) {
-        let loadout = {
-          success: false,
-          method: 'get',
-          path: 'room/:room',
-          error: 'missing parameter(s)'
-        }
-        response.status(412).json(loadout);
-      } else {
-        this.room_model.getRoom(performer, room_id)
-          .then((room) => {
-            let loadout = {
-              success: true,
-              room: room
-            }
-            response.status(201).json(loadout);
           })
           .catch((error) => {
             next(error);
